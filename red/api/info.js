@@ -22,7 +22,10 @@ module.exports = {
         var safeSettings = {
             httpNodeRoot: settings.httpNodeRoot,
             version: settings.version,
-            user: req.user
+            user: req.user,
+            deviceId: settings.deviceId,
+            devices: settings.devices,
+            masterDevice: settings.masterDevice
         };
         
         if (util.isArray(settings.paletteCategories)) {

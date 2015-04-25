@@ -70,13 +70,29 @@ span.logo {
     line-height: 30px;
     text-decoration: none;
 }
+
+span.logo span.sublogo{
+  font-size: 9pt !important;
+}
+
 span.logo span {
-    vertical-align: middle;
-    font-size: 16px !important;
+    /* vertical-align: middle;*/
+    font-size: 20px !important;
 }
 span.logo img {
     height: 18px;
 }
+#tools .button {
+    line-height: 22px;
+    display: inline-block;
+    font-size: 14px;
+    padding: 4px 12px;
+    text-decoration: none;
+    border-radius: 3px;
+    margin: auto 10px;
+    vertical-align: middle;
+}
+
 #header ul.header-toolbar {
     padding: 0;
     margin: 0;
@@ -249,6 +265,23 @@ span.deploy-button-group.open > #btn-deploy.disabled + a {
    margin-left: 160px;
    overflow: hidden;
 }
+
+#tools {
+    position: absolute;
+    top: 5px; left:10px; height: 30px; width: 140px;
+}
+#tools .button {
+    line-height: 22px;
+    display: inline-block;
+    font-size: 14px;
+    padding: 4px 12px;
+    text-decoration: none;
+    border-radius: 3px;
+    color: #000;
+    margin: auto 10px;
+    vertical-align: middle;
+}
+
 
 #chart {
    overflow: auto;
@@ -454,7 +487,7 @@ span.deploy-button-group.open > #btn-deploy.disabled + a {
 }
 #palette {
     position: absolute;
-    top: 5px; left:10px; bottom: 10px;
+    top: 40px; left:10px; bottom: 10px;
 }
 #workspace {
     position: absolute;
@@ -492,6 +525,19 @@ span.deploy-button-group.open > #btn-deploy.disabled + a {
     stroke-dasharray: 10 5;
 }
 
+.device-lasso {
+    stroke-width: 4px;
+    fill: rgba(128,128,128,0.2);
+}
+
+.devbox_selected {
+   stroke: #ff7f0e;
+}
+
+.dev-box-handle {
+    fill: rgba(128,128,128,0.2);
+}
+
 .group-box {
     stroke-width: 1px;
     stroke: #aaaaaa;
@@ -520,7 +566,7 @@ span.deploy-button-group.open > #btn-deploy.disabled + a {
     margin-left: 20px;
 }
 
-#workspace, #palette, #sidebar {
+#workspace, #palette, #sidebar, #tools {
    border: 1px solid #000;
    border-radius: 3px;
 }

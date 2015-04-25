@@ -30,7 +30,7 @@ RED.view = (function() {
         touchStartTime = 0;
 
     var workspaceScrollPositions = {};
-
+    var activeWorkspace = 0;
 
     var activeSubflow = null;
     var activeNodes = [];
@@ -79,7 +79,7 @@ RED.view = (function() {
         .on("dblclick.zoom", null)
         .append('svg:g')
         .on("mousemove", canvasMouseMove)
-        .on("mousedown", canvasMouseDown)
+//        .on("mousedown", canvasMouseDown)
         .on("mouseup", canvasMouseUp)
         .on("touchend", function() {
             clearTimeout(touchStartTime);
@@ -194,7 +194,27 @@ RED.view = (function() {
     var outer_background = vis.append('svg:rect')
         .attr('width', space_width)
         .attr('height', space_height)
-        .attr('fill','#fff');
+        .attr('fill','#fff')
+        .on("mousedown", canvasMouseDown);
+   
+    // group to hold the device boxes behind the nodes
+    var devicebox = vis.append('svg:g');
+   
+    // TODO: get this from settings
+    var currentDevice = { deviceId:"server", label:"Server"};
+   
+    // currently selected dev box
+    var selected_devBox = null;
+   
+    // master device for the distributed flows
+    var masterDeviceUrl = null;
+   
+    /**
+    * set the current device the user selected to configure nodes
+    **/
+    function setCurrentDevice(device) {
+        currentDevice = device;
+    };
 
     //var gridScale = d3.scale.linear().range([0,2000]).domain([0,2000]);
     //var grid = vis.append('g');
@@ -328,6 +348,7 @@ RED.view = (function() {
                 var nn = { id:(1+Math.random()*4294967295).toString(16),x: mousePos[0],y:mousePos[1],w:node_width,z:RED.workspaces.active()};
                 
                 nn.type = selected_tool;
+                nn.deviceId = currentDevice.deviceId;
                 nn._def = RED.nodes.getType(nn.type);
                 
                 if (!m) {
@@ -383,7 +404,17 @@ RED.view = (function() {
             selected_link = null;
             updateSelection();
         }
-        if (mouse_mode === 0) {
+
+        // if (mouse_mode === 0) {
+        // selecting to add nodes to a device, or selection lasso
+        if (mouse_mode === RED.state.DEFAULT || mouse_mode === RED.state.DEVICE_DRAWING) {
+
+            // clear devBox selection if any
+            if (selected_devBox != null) {
+                selected_devBox.selected = false;
+                selected_devBox = null;
+            }
+
             if (lasso) {
                 lasso.remove();
                 lasso = null;
@@ -391,16 +422,22 @@ RED.view = (function() {
 
             if (!touchStartTime) {
                 var point = d3.mouse(this);
-                lasso = vis.append('rect')
-                    .attr("ox",point[0])
+                if (mouse_mode === RED.state.DEVICE_DRAWING) {
+                    // draw selection in the deviceBox layer
+                    lasso = devicebox.append('rect').attr("class","device-lasso");
+                } else {
+                    // draw selection lasso in the node layer
+                    lasso = vis.append('rect').attr("class","lasso");
+                }
+                lasso.attr("ox",point[0])
                     .attr("oy",point[1])
                     .attr("rx",2)
                     .attr("ry",2)
                     .attr("x",point[0])
                     .attr("y",point[1])
                     .attr("width",0)
-                    .attr("height",0)
-                    .attr("class","lasso");
+                    .attr("height",0);
+                    // .attr("class","lasso");
                 d3.event.preventDefault();
             }
         }
@@ -579,7 +616,12 @@ RED.view = (function() {
                 });
             }
             updateSelection();
-            lasso.remove();
+            if (mouse_mode == RED.state.DEVICE_DRAWING) {
+                setDeviceBox(lasso);
+            } else {
+                lasso.remove();
+            }
+            // creates a new one
             lasso = null;
         } else if (mouse_mode == RED.state.DEFAULT && mousedown_link == null && !d3.event.ctrlKey ) {
             clearSelection();
@@ -669,7 +711,7 @@ RED.view = (function() {
     }
 
     function updateSelection() {
-        if (moving_set.length === 0 && selected_link == null) {
+        if (moving_set.length === 0 && selected_link == null && selected_devBox == null) {
             RED.keyboard.remove(/* backspace */ 8);
             RED.keyboard.remove(/* delete */ 46);
             RED.keyboard.remove(/* c */ 67);
@@ -703,7 +745,50 @@ RED.view = (function() {
         
         eventHandler.emit("selection-changed",selection);
     }
-    
+
+    /**
+     * setDevices
+     * set the deviceId of all of the selected devices, and add a device_box and device to the flow
+     */
+    function setDeviceBox(lasso) {
+
+        // only keep boxes that surround nodes
+        if (moving_set.length == 0) {
+            lasso.remove();
+            lasso = null;
+            return;
+        }
+
+        // add a 'device_box' node to the model.
+        var nn = { id:(1+Math.random()*4294967295).toString(16),
+            type:"devicebox",
+            deviceId:currentDevice.deviceId,
+            x:Number(lasso.attr("x")),
+            y:Number(lasso.attr("y")),
+            w:Number(lasso.attr("width")),
+            h:Number(lasso.attr("height")),
+            z:activeWorkspace
+        };
+
+        // add it to the device box list in the model.
+        RED.nodes.addDeviceBox(nn);
+
+        // TODO: for each node in the moving set, set the device_id to the same as the box
+        for (var i=0;i<moving_set.length;i++) {
+            var n = moving_set[i];
+
+            n.n.deviceId = currentDevice.deviceId;
+        }
+        // TODO: when deleting a device_box, set the device to the local device id?
+
+        // device box added, save it
+        setDirty(true);
+        RED.sidebar.info.refresh(n.n);
+        lasso.remove();
+        lasso = null;
+        redraw();
+    }
+
     function endKeyboardMove() {
         var ns = [];
         for (var i=0;i<moving_set.length;i++) {
@@ -838,6 +923,9 @@ RED.view = (function() {
             RED.nodes.removeLink(selected_link);
             removedLinks.push(selected_link);
             RED.nodes.dirty(true);
+        }
+        if (selected_devBox) {
+            RED.nodes.removeDeviceBox(selected_devBox);
         }
         RED.history.push({t:'delete',nodes:removedNodes,links:removedLinks,subflowOutputs:removedSubflowOutputs,subflowInputs:removedSubflowInputs,dirty:startDirty});
 
@@ -1063,12 +1151,76 @@ RED.view = (function() {
         RED.touch.radialMenu.show(obj,pos,options);
         resetMouseVars();
     }
+    /**
+     * select the device box
+     */
+    function devBoxMouseDown(d) {
+
+        // clear devBox selection
+        if (selected_devBox != null) {
+            selected_devBox.selected = false;
+        }
+        selected_devBox = null;
+
+        selected_devBox = d;
+        d.dirty = true;
+        d.selected = true;
+        updateSelection();
+        redraw();
+        d3.event.preventDefault();
+    }
+
     function redraw() {
         vis.attr("transform","scale("+scaleFactor+")");
         outer.attr("width", space_width*scaleFactor).attr("height", space_height*scaleFactor);
 
         // Don't bother redrawing nodes if we're drawing links
         if (mouse_mode != RED.state.JOINING) {
+            
+            // first draw the device boxes
+            // delete boxes that have been deleted
+            var devbox = devicebox.selectAll(".devboxgroup").data(RED.nodes.deviceboxes.filter(function(d) {
+                return d.z == activeWorkspace
+            }),function(d){
+                return d.id
+            });
+            devbox.exit().remove();
+
+            // add new ones
+            var devboxEnter = devbox.enter().insert("svg:g").attr("class", "devboxgroup");
+            devboxEnter.each(function(d,i) {
+                var db = d3.select(this);
+                db.attr("id", d.id);
+                db.attr("transform", "translate("+d.x+","+d.y+")");
+
+                var dbr = db.append('rect')
+                            .attr("width",d.w)
+                            .attr("height",d.h)
+                            .attr("class","device-lasso");
+
+                var dbt = db.append('text').attr("x",5).attr("y",15).text(d.deviceId);
+                var dbresize = db.append('rect')
+                    .attr("class","dev-box-handle")
+                    .attr("x", d.w-20)
+                    .attr("y", d.h-20)
+                    .attr("width",20)
+                    .attr("height",20);
+            });
+
+            // connect mouse down to the boxes to select them
+            devbox.on("mousedown",devBoxMouseDown);
+
+            // highlight selected devbox
+            devbox.classed("devbox_selected", function(d) {
+                return d === selected_devBox || d.selected;
+            });
+            
+            
+            // then draw the nodes
+
+            // first delete any that have been removed from the model
+            var node = vis.selectAll(".nodegroup").data(activeNodes,function(d){return d.id});
+            node.exit().remove();
             
             var dirtyNodes = {};
             
@@ -1183,9 +1335,6 @@ RED.view = (function() {
                 vis.selectAll(".subflowinput").remove();
             }
             
-            var node = vis.selectAll(".nodegroup").data(activeNodes,function(d){return d.id});
-            node.exit().remove();
-
             var nodeEnter = node.enter().insert("svg:g").attr("class", "node nodegroup");
             nodeEnter.each(function(d,i) {
                     var node = d3.select(this);
@@ -1642,8 +1791,91 @@ RED.view = (function() {
         
     }
 
+    function showLoadMasterFlowDialog() {
+        mouse_mode = RED.state.IMPORT;
+        $("#dialog-import-form").html($("script[data-template-name='import-master-flow-dialog']").html());
+        if (masterDeviceUrl == null) {
+            masterDeviceUrl = RED.settings.masterDevice;
+        }
+        $("#node-input-url").val(masterDeviceUrl);
+        $("#import-dialog" ).dialog({
+            title:"Import Master Flow",
+            width: 500,
+            open: function(e) {
+                RED.keyboard.disable();
+            },
+            close: function(e) {
+                RED.keyboard.enable();
+            },
+            buttons: 
+            {
+                "Get Master Flow": function() {
+                    var url = $( "#node-input-url" ).val();
+                    
+                    // save it for next time
+                    masterDeviceUrl = url;
+
+                    // get the remote flow from the other server directly (assumes CORS enabled)
+                    $.getJSON(url+"/flows").done(function(nodes) {
+
+                        // delete all of the current workspaces/tabs
+                        // make a copy of the tabs to delete
+                        var ws_remove = [];
+                        var workspaces = RED.nodes.workspaces;
+                        var i;
+                        for (i in workspaces) {
+                            ws_remove.push(workspaces[i]);
+                        }
+                        var new_ws_id = RED.nodes.id();
+
+                        // HACK: create a dummy workspace so we always have one around.
+                        // not sure why this is needed, but it is
+                        var dummy_workspace = { type:"tab", id:new_ws_id, label:"dummy" };
+                        RED.nodes.addWorkspace(dummy_workspace);
+                        RED.view.addWorkspace(dummy_workspace);
+
+                        // delete all of the current tabs
+                        for (i =0; i<ws_remove.length; i++) {
+                            RED.view.removeWorkspace(ws_remove[i]);
+                            RED.nodes.removeWorkspace(ws_remove[i].id);
+                        }
+
+                        // redraw everything
+                        // Should we do this after we remove the dummy?
+                        RED.nodes.import(nodes);
+                        setDirty(true);
+                        redraw();
+
+                        // HACK, remove the dummy tab/workspace
+                        RED.view.removeWorkspace(dummy_workspace);
+                        RED.nodes.removeWorkspace(dummy_workspace.id);
+
+                    }).fail(function( jqxhr, textStatus, error ) {
+                        var err = textStatus + ", " + error;
+                        RED.notify("<strong>Request Failed: " + err,"error");
+                    });
+                    $( this ).dialog( "close" );
+                },
+                Cancel: function() {
+                    $( this ).dialog( "close" );
+                }
+            }
+        }).dialog( "open" );
+    }
+
+
     function focusView() {
         $("#chart svg").focus();
+    }
+
+    // TODO: 'dirty' should be a property of RED.nodes - with an event callback for ui hooks
+    function setDirty(d) {
+        dirty = d;
+        if (dirty) {
+            $("#btn-deploy").removeClass("disabled");
+        } else {
+            $("#btn-deploy").addClass("disabled");
+        }
     }
 
     /**
@@ -1808,6 +2040,8 @@ RED.view = (function() {
                 selection.link = selected_link;
             }
             return selection;
-        }
+        },
+        setCurrentDevice: setCurrentDevice,
+        showLoadMasterFlowDialog: showLoadMasterFlowDialog
     };
 })();

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  **/
-
+var util = require("util");
 var when = require("when");
 var clone = require("clone");
 
@@ -249,23 +249,198 @@ function createCatchNodeMap(nodes) {
 
 var subflowInstanceRE = /^subflow:(.+)$/;
 
-function Flow(config) {
+function Flow(config, settings) {
     
     this.activeNodes = {};
     this.subflowInstanceNodes = {};
     this.catchNodeMap = {};
     this.started = false;
 
-    this.parseConfig(config);
+    this.parseConfig(config, settings);
     
 }
+/**
+* Analyze node list and replace placeholder nodes with wire nodes where needed.
+*/
+Flow.prototype.analyzeDistributedFlow = function(nodes) {
+    
+    'use strict';
+    var replaced = false;
+    var nId;        // current node id
+    var n, nt, nn;  // current node, node type, new node
+    var outWires;   // outgoing wires from the current node
+    var targetId;   // id of outgoing wire
+    var srcDeviceId, targetDeviceId; // deviceId of outgoing wire
+    var i,j;        // loop counters
+    var srcId;      // id of source node
+    var srcN;       // source node
+    var wireInList = []; // list of input wires
+    var wireOutList = []; // list of output wires
+    var deleteList = []; // nodes to delete
+    var topic;      // topic for in or out node
 
-Flow.prototype.parseConfig = function(config) {
+    util.log('[dist] analyzing all flows for distributed nodes')
+    for (nId in nodes) {
+        replaced = false;
+
+        n = nodes[nId];     
+console.log(n);        
+        if (n.type != "placeholder") continue;
+
+        // assume a placeholder node can be deleted unless: 
+        // a - its connected to another node
+        // b - an incoming or outgoing connection is on another device
+
+        // first check the external device node's outgoing wires to see if it is connected to a node
+        // we are hosting. If so, we'll replace this node with an incoming wire node
+
+        /**
+            [current-node-placeholder]--->[target-node]
+
+            if target-node is on our device, replace current-node-placeholder with a 'wire in' node.
+        **/        
+        util.log("[dist] checking outgoing wires of: "+nId+" on device: "+n.deviceId);
+        for (i=0; i<n.wires.length; i++) {
+            outWires = n.wires[i];
+            for (j=0; j<outWires.length; j++) {
+                targetId = outWires[j];
+
+                util.log("[dist] checking wire: "+i+" to node:"+targetId);
+
+                targetDeviceId = nodes[targetId].deviceId || settings.deviceId;
+
+                util.log("[dist] node id:"+n.deviceId+" target device id:"+targetDeviceId);
+
+                // target is not us, don't replace it
+                if (targetDeviceId != settings.deviceId) {
+                    util.log("[dist] target is not us ("+targetDeviceId+") skipping");
+                    continue;
+                }
+
+                // same device, we don't replace it
+                if (targetDeviceId == n.deviceId) {
+                    util.log("[dist] same deviceId ("+targetDeviceId+") skipping");
+                    continue;
+                }
+
+                // replace node with incoming MQTT node
+                nt = typeRegistry.get("wire in");
+                try {
+                    util.log("[dist] add "+nId +" to wire in list");
+                    wireInList.push({"node":nId, "topic":n.id+"-"+i+"-"+targetId});
+                }
+                catch (err) {
+                    util.log("[dist] error creating input wire: "+err);
+                }
+                replaced = true;         
+            }
+        }
+
+        // FIXME: what if the placeholder is connected to multiple nodes on this device?
+
+        if (replaced)
+            continue;   // get the next placeholder node
+
+        // Next check all nodes to see if they have a wire connected to this placeholder
+        // from an external device.  If so, we cannot delete it and need a wire
+
+        /**
+            [src-node]----->[current-node-placeholder]
+
+            if src-node is on our device, then we need a wire out node to connect it to
+            current-node-placeholder on another device
+        **/   
+        util.log("[dist] checking for wires into "+nId);
+        for (srcId in nodes) {
+            srcN = nodes[srcId];
+            if (srcN.id == n.id) continue;
+            if (srcN.wires.length == 0) continue;
+
+            srcDeviceId = srcN.deviceId || settings.deviceId;
+            
+            // the source is not us, so we don't care
+            if (srcDeviceId != settings.deviceId) continue;
+            // source and destination on same id, so we can delete it
+            if (srcDeviceId == n.deviceId) continue;
+
+            util.log("[dist] src "+srcN.id );
+
+            // devices are different, check if src connected
+            for (i=0; i<srcN.wires.length; i++) {
+                outWires = srcN.wires[i];
+                for (j=0; j<outWires.length; j++) {
+                    targetId = outWires[j];
+
+                    if (targetId != n.id) continue;
+
+                    util.log("[dist] src "+srcN.id+' is connected to '+n.id);
+                    // replace node with outgoing MQTT node (to the device)
+                    nt = typeRegistry.get("wire out");
+                    try {
+                        util.log("[dist] add "+nId +" to wire out list");
+                        wireOutList.push({"node":nId, "topic":srcId+"-"+i+"-"+nId});
+                    }
+                    catch (err) {
+                        util.log("[dist] creating output wire: "+err);
+                    }
+                    replaced = true;
+                }
+            }
+        }
+    
+        // this device is not connected to the placeholder so delete the node
+        // - its an internal node, or not connected to anything on another device
+        if (!replaced) {
+            util.log("[dist] deleting inner node: "+nId);
+            deleteList.push(nId);
+        }
+    }
+
+    // now update the nodes, deleting placeholders, and replacing them with wires
+
+    // first deleting ones we no longer need - they are isolated on another device
+    for (i=0; i<deleteList.length; i++) {
+        nId = deleteList[i];
+        util.log('[dist] deleting node '+nId);
+        delete nodes[nId];
+    }
+
+    // replace placeholder nodes with wire in nodes
+    nt = typeRegistry.get("wire out");
+    for (i=0; i<wireOutList.length; i++) {
+        nId = wireOutList[i].node;
+        topic = wireOutList[i].topic;
+
+        n = nodes[nId];        
+        util.log('[dist] replacing node '+nId+' with wire out node on topic '+topic);
+
+        nn = new nt({"id":n.id, "topic":topic, "deviceId":n.deviceId, "wires":n.wires});
+        nodes[nId] = nn;
+    }
+
+    // replace placeholder nodes with wireout nodes
+    nt = typeRegistry.get("wire in");
+    for (i=0; i<wireInList.length; i++) {
+        nId = wireInList[i].node;
+        topic = wireInList[i].topic;
+
+        n = nodes[nId];        
+        util.log('[dist] replacing node '+nId+' with wire in node on topic '+topic);
+
+        nn = new nt({"id":n.id, "topic":topic, "deviceId":n.deviceId, "wires":n.wires});
+        nodes[nId] = nn;
+    }
+
+    util.log('[dist] ==== distributed flow completed.')
+}
+
+Flow.prototype.parseConfig = function(config, settings) {
     var i;
     var nodeConfig;
     var nodeType;
     
     this.config = config;
+    this.settings = settings;
     
     this.allNodes = {};
     
@@ -292,15 +467,19 @@ Flow.prototype.parseConfig = function(config) {
     //console.log("Known subflows:",Object.keys(this.subflows));
     for (i=0;i<this.config.length;i++) {
         nodeConfig = this.config[i];
-        
-        
         nodeType = nodeConfig.type;
-        
+        var nodeDeviceId = nodeConfig.deviceId || settings.deviceId;
+        if (nodeDeviceId != settings.deviceId) {
+            util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
+            // create a placeholder for the external node
+            nodeType = "placeholder";
+        }
+
         if (nodeConfig.credentials) {
             delete nodeConfig.credentials;
         }
         
-        if (nodeType != "tab" && nodeType != "subflow") {
+        if (nodeType != "tab" && nodeType != "subflow" && nodeType != "devicebox") {
             var m = subflowInstanceRE.exec(nodeType);
             if ((m && !this.subflows[m[1]]) || (!m && !typeRegistry.get(nodeType))) {
                 // This is an unknown subflow or an unknown type
@@ -331,6 +510,9 @@ Flow.prototype.parseConfig = function(config) {
             }
         }
     }
+    
+    // analyze flow and add wire nodes where needed.
+    this.analyzeDistributedFlow(this.allNodes);
     
     //console.log("NODES");
     //for (i in this.nodes) {

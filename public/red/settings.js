@@ -98,7 +98,7 @@ RED.settings = (function () {
                     RED.settings.remove("auth-tokens");
                 }
                 console.log("Node-RED: " + data.version);
-                done();
+                done(RED.settings);
             },
             error: function(jqXHR,textStatus,errorThrown) {
                 if (jqXHR.status === 401) {

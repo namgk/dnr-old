@@ -21,7 +21,7 @@
   limitations under the License.
 -->
 <head>
-<title>Node-RED</title>
+<title>Distributed Node-RED</title>
 <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
 <link href="jquery/css/smoothness/jquery-ui-1.10.3.custom.min.css" rel="stylesheet" media="screen">
 <link rel="stylesheet" type="text/css" href="orion/built-editor.css"/>
@@ -30,12 +30,17 @@
 </head>
 <body spellcheck="false">
 <div id="header">
-    <span class="logo"><img src="node-red.png"> <span>Node-RED</span></span>
+    <span class="logo"><img src="node-red.png"> <span>Distributed Node-RED</span></span>
     <ul class="header-toolbar hide">
         <li><a id="btn-sidemenu" class="button" data-toggle="dropdown" href="#"><i class="fa fa-bars"></i></a></li>
     <ul>
 </div>
 <div id="main-container" class="sidebar-closed hide">
+    <div id="tools" class="palette-category">
+        <a id="btn-set-device" class="button dropdown-toggle"data-toggle="dropdown" href="#">
+          <i class="fa fa-cloud"></i> Set Device</a>  
+        <ul id="device-list" class="dropdown-menu"></ul>      
+    </div><!-- /tools -->
     <div id="palette">
         <img src="spin.svg" class="palette-spinner hide"/>
         <div id="palette-container" class="palette-scroll">
@@ -79,6 +84,9 @@
 <div id="shade"></div>
 
 <div id="dialog" class="hide"><form id="dialog-form" class="form-horizontal"></form></div>
+<div id="import-dialog" class="hide">
+    <form id="dialog-import-form" class="form-horizontal"></form>
+</div>
 <div id="node-config-dialog" class="hide"><form id="dialog-config-form" class="form-horizontal"></form><div class="form-tips" id="node-config-dialog-user-count"></div></div>
 <div id="subflow-dialog" class="hide">
     <form class="form-horizontal">
@@ -170,6 +178,16 @@
     </div>
 </script>
 
+<script type="text/x-red" data-template-name="import-master-flow-dialog">
+    <div class="form-row">
+        <label for="node-input-url" ><i class="fa fa-cloud"></i>Server URL:</label>
+        <input type="text" id="node-input-url" placeholder="URL">
+        <div class="form-tips">
+        Enter the URL of the master flow server.
+        </div>
+    </div>
+</script>
+
 <script src="jquery/js/jquery-1.11.1.min.js"></script>
 <script src="bootstrap/js/bootstrap.min.js"></script>
 <script src="jquery/js/jquery-ui-1.10.3.custom.min.js"></script>
@@ -195,6 +213,7 @@
 <script src="red/ui/view.js"></script>
 <script src="red/ui/sidebar.js"></script>
 <script src="red/ui/palette.js"></script>
+<script src="red/ui/devices.js"></script>
 <script src="red/ui/tab-info.js"></script>
 <script src="red/ui/tab-config.js"></script>
 <script src="red/ui/editor.js"></script>

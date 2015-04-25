@@ -17,10 +17,26 @@ var RED = (function() {
 
 
     function loadSettings() {
-        RED.settings.init(loadNodeList);
+        RED.settings.init(loadDeviceList);
     }
 
-    function loadNodeList() {
+	function loadDeviceList(settings) {
+           var defaultDevice = settings.deviceId;
+            var i;
+            var dev;
+            // set the device to the default
+            for (i=0; i<settings.devices.length; i++) {
+                dev = settings.devices[i];
+                if (dev.deviceId == settings.deviceId)
+                    break;
+            }
+            RED.view.setCurrentDevice(dev);
+            // set up the device list pop down
+            RED.devices.init(RED.view.setCurrentDevice,settings.devices);          
+    }
+
+    function loadNodeList(settings) {
+        loadDeviceList(settings);
         $.ajax({
             headers: {
                 "Accept":"application/json"
@@ -131,19 +147,25 @@ var RED = (function() {
         });
     }
 
+    function loadMasterFlows() {
+        alert("load master flows");
+        loadFlows("load");
+    }
+
     var statusEnabled = false;
     function toggleStatus(state) {
         statusEnabled = state;
         RED.view.status(statusEnabled);
     }
 
-    function loadEditor() {
+    function loadEditor(settings) {
         RED.menu.init({id:"btn-sidemenu",
             options: [
                 {id:"btn-sidebar",label:"Sidebar",toggle:true,onselect:RED.sidebar.toggleSidebar, selected: true},
                 {id:"btn-node-status",label:"Display node status",toggle:true,onselect:toggleStatus, selected: true},
                 null,
                 {id:"btn-import-menu",label:"Import",options:[
+                    {id:"btn-import-library",icon:"fa fa-cloud",label:"Master Device...",onselect:RED.view.showLoadMasterFlowDialog},
                     {id:"btn-import-clipboard",label:"Clipboard",onselect:RED.clipboard.import},
                     {id:"btn-import-library",label:"Library",options:[]}
                 ]},
@@ -188,7 +210,7 @@ var RED = (function() {
         $("#main-container").show();
         $(".header-toolbar").show();
 
-        loadNodeList();
+        loadNodeList(settings);
     }
 
     $(function() {

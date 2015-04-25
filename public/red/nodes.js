@@ -23,6 +23,10 @@ RED.nodes = (function() {
     var workspaces = {};
     var subflows = {};
     
+    // device boxes on the display
+    var deviceboxes = [];   // list of device boxes for display in the flow
+    var defaultDeviceId;      // default device to use when none specified
+
     var dirty = false;
     
     function setDirty(d) {
@@ -242,6 +246,18 @@ RED.nodes = (function() {
         }
     }
 
+    function addDeviceBox(devicebox) {
+        deviceboxes.push(devicebox);
+    }
+
+    function removeDeviceBox(db) {
+        var index = deviceboxes.indexOf(db);
+        if (index != -1) {
+            deviceboxes.splice(index,1);
+        }
+    }
+
+
     function addWorkspace(ws) {
         workspaces[ws.id] = ws;
     }
@@ -342,6 +358,7 @@ RED.nodes = (function() {
         var node = {};
         node.id = n.id;
         node.type = n.type;
+        node.deviceId = n.deviceId;
         if (node.type == "unknown") {
             for (var p in n._orig) {
                 if (n._orig.hasOwnProperty(p)) {
@@ -374,10 +391,21 @@ RED.nodes = (function() {
                 }
             }
         }
+        
+        node.x = n.x;
+        node.y = n.y;
+        node.z = n.z;
+        node.w = n.w;
+        
+        // devicebox config node
+        if (n._def.category == "config") {
+           node.h = n.h;
+        }
+
         if (n._def.category != "config") {
-            node.x = n.x;
-            node.y = n.y;
-            node.z = n.z;
+            // node.x = n.x;
+            // node.y = n.y;
+            // node.z = n.z;
             node.wires = [];
             for(var i=0;i<n.outputs;i++) {
                 node.wires.push([]);
@@ -493,6 +521,9 @@ RED.nodes = (function() {
                 nns.push(convertSubflow(subflows[i]));
             }
         }
+        for (i=0;i<deviceboxes.length;i++) {
+            nns.push(deviceboxes[i]);
+        }
         for (i in configNodes) {
             if (configNodes.hasOwnProperty(i)) {
                 nns.push(convertNode(configNodes[i], true));
@@ -533,6 +564,7 @@ RED.nodes = (function() {
             // TODO: remove workspace in next release+1
             if (n.type != "workspace" && 
                 n.type != "tab" && 
+                n.type != "devicebox" && 
                 n.type != "subflow" &&
                 !registry.getNodeType(n.type) &&
                 n.type.substring(0,8) != "subflow:") {
@@ -651,6 +683,20 @@ RED.nodes = (function() {
             activeWorkspace = RED.workspaces.active();
         }
 
+        // Add device boxes to the view
+        for (i=0;i<newNodes.length;i++) {
+            n = newNodes[i];
+            if (n.type === "devicebox") {
+                addDeviceBox(n);
+            }
+        }
+
+        // set up default device
+        defaultDeviceId = RED.settings.deviceId;
+        
+        // add nodes
+
+
         var node_map = {};
         var new_nodes = [];
         var new_links = [];
@@ -658,10 +704,10 @@ RED.nodes = (function() {
         for (i=0;i<newNodes.length;i++) {
             n = newNodes[i];
             // TODO: remove workspace in next release+1
-            if (n.type !== "workspace" && n.type !== "tab" && n.type !== "subflow") {
+            if (n.type !== "workspace" && n.type !== "tab" && n.type !== "subflow" && n.type !== "devicebox") {
                 def = registry.getNodeType(n.type);
                 if (!def || def.category != "config") {
-                    var node = {x:n.x,y:n.y,z:n.z,type:0,wires:n.wires,changed:false};
+                    var node = {x:n.x,y:n.y,z:n.z,type:0,deviceId:n.deviceId,wires:n.wires,changed:false};
                     if (createNewIds) {
                         if (subflow_map[node.z]) {
                             node.z = subflow_map[node.z].id;
@@ -728,6 +774,11 @@ RED.nodes = (function() {
                             }
                         }
                     }
+                    
+                    if (!node.deviceId) {
+                        node.deviceId = defaultDeviceId;
+                    }
+
                     addNode(node);
                     RED.editor.validateNode(node);
                     node_map[n.id] = node;
@@ -914,6 +965,11 @@ RED.nodes = (function() {
             } else {
                 setDirty(d);
             }
-        }
+        },
+        
+        workspaces: workspaces,
+        addDeviceBox: addDeviceBox,
+        removeDeviceBox: removeDeviceBox,
+        deviceboxes: deviceboxes 
     };
 })();

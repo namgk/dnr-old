@@ -52,7 +52,7 @@ function createNode(node,def) {
 
 function init(_settings,storage,app) {
     credentials.init(storage,app);
-    flows.init(storage);
+    flows.init(storage, _settings);
     registry.init(_settings);
 }
 

@@ -24,7 +24,7 @@ var log = require("../log");
 var events = require("../events");
 var redUtil = require("../util");
 var storage = null;
-
+var settings = null;
 
 var activeFlow = null;
 
@@ -42,8 +42,9 @@ events.on('type-registered',function(type) {
 });
 
 var flowNodes = module.exports = {
-    init: function(_storage) {
+    init: function(_storage, _settings) {
         storage = _storage;
+        settings = _settings;
     },
     
     /**
@@ -53,7 +54,7 @@ var flowNodes = module.exports = {
     load: function() {
         return storage.getFlows().then(function(flows) {
             return credentials.load().then(function() {
-                activeFlow = new Flow(flows);
+                activeFlow = new Flow(flows, settings);
                 flowNodes.startFlows();
             });
         }).otherwise(function(err) {
@@ -118,14 +119,14 @@ var flowNodes = module.exports = {
             return credentialSavePromise
                 .then(function() { return storage.saveFlows(cleanConfig);})
                 .then(function() { return flowNodes.stopFlows(); })
-                .then(function() { activeFlow = new Flow(config); flowNodes.startFlows();});
+                .then(function() { activeFlow = new Flow(config, settings); flowNodes.startFlows();});
         } else {
             return credentialSavePromise
                 .then(function() { return storage.saveFlows(cleanConfig);})
                 .then(function() { 
                     var configDiff = activeFlow.diffConfig(config,type);
                     return flowNodes.stopFlows(configDiff).then(function() {
-                        activeFlow.parseConfig(config);
+                        activeFlow.parseConfig(config, settings);
                         flowNodes.startFlows(configDiff);
                     });
                 });
