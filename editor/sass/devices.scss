@@ -1,0 +1,49 @@
+/**
+ * Copyright 2015 IBM Corp.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ **/
+
+
+
+#tools .button {
+    line-height: 22px;
+    display: inline-block;
+    font-size: 14px;
+    padding: 4px 12px;
+    text-decoration: none;
+    border-radius: 3px;
+    color: #000;
+    margin: auto 10px;
+    vertical-align: middle;
+    
+}
+
+#tools {
+    position: absolute;
+    top: 5px; left:10px; height: 30px; width: 140px;
+    @include component-border;
+}
+
+.device-lasso {
+    stroke-width: 4px;
+    fill: rgba(128,128,128,0.2);
+}
+
+.devbox_selected {
+   stroke: #ff7f0e;
+}
+
+.dev-box-handle {
+    fill: rgba(128,128,128,0.2);
+}

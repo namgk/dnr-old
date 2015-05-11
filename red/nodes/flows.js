@@ -34,10 +34,8 @@ var activeConfig = [];
 var activeConfigNodes = {};
 
 events.on('type-registered',function(type) {
-    if (activeFlow) {
-        if (activeFlow.typeRegistered(type)) {
-            log.info("Missing type registered: "+type);
-        }
+    if (activeFlow && activeFlow.typeRegistered(type)) {
+        log.info("Missing type registered: "+type);
     }
 });
 
@@ -114,7 +112,6 @@ var flowNodes = module.exports = {
         } else {
             credentialSavePromise = when.resolve();
         }
-        
         if (type=="full") {
             return credentialSavePromise
                 .then(function() { return storage.saveFlows(cleanConfig);})

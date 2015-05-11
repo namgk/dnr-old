@@ -1,5 +1,5 @@
 /**
-* Copyright 2013,2014 IBM Corp.
+* Copyright 2013,2015 IBM Corp.
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -51,26 +51,29 @@ module.exports = function(RED) {
                 this.serialConfig.stopbits,
                 this.serialConfig.newline);
             node.addCh = "";
-            if (node.serialConfig.addchar == "true") {
+            if (node.serialConfig.addchar == "true" || node.serialConfig.addchar === true) {
                 node.addCh = this.serialConfig.newline.replace("\\n","\n").replace("\\r","\r").replace("\\t","\t").replace("\\e","\e").replace("\\f","\f").replace("\\0","\0");
             }
             node.on("input",function(msg) {
-                var payload = msg.payload;
-                if (!Buffer.isBuffer(payload)) {
-                    if (typeof payload === "object") {
-                        payload = JSON.stringify(payload);
-                    } else {
-                        payload = payload.toString();
+                if (msg.hasOwnProperty("payload")) {
+                    var payload = msg.payload;
+                    if (!Buffer.isBuffer(payload)) {
+                        if (typeof payload === "object") {
+                            payload = JSON.stringify(payload);
+                        } else {
+                            payload = payload.toString();
+                        }
+                        payload += node.addCh;
+                    } else if (node.addCh !== "") {
+                        payload = Buffer.concat([payload,new Buffer(node.addCh)]);
                     }
-                    payload += node.addCh;
-                } else if (node.addCh !== "") {
-                    payload = Buffer.concat([payload,new Buffer(node.addCh)]);
+                    node.port.write(payload,function(err,res) {
+                        if (err) {
+                            var errmsg = err.toString().replace("Serialport","Serialport "+node.port.serial.path);
+                            node.error(errmsg,msg);
+                        }
+                    });
                 }
-                node.port.write(payload,function(err,res) {
-                    if (err) {
-                        node.error(err);
-                    }
-                });
             });
             node.port.on('ready', function() {
                 node.status({fill:"green",shape:"dot",text:"connected"});

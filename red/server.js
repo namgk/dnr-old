@@ -45,7 +45,7 @@ function init(_server,_settings) {
 
 function start() {
     return storage.init(settings)
-        .then(settings.load(storage))
+        .then(function() { return settings.load(storage)})
         .then(function() {
             if (settings.httpAdminRoot !== false) {
                 require("./api").init(app,storage);
@@ -54,7 +54,7 @@ function start() {
             if (log.metric()) {
                 runtimeMetricInterval = setInterval(function() {
                     reportMetrics();
-                }, 15000);
+                }, settings.runtimeMetricInterval||15000);
             }
             console.log("\n\nWelcome to Node-RED\n===================\n");
             if (settings.version) {
@@ -63,11 +63,11 @@ function start() {
             log.info("Node.js  version: "+process.version);
             log.info("Loading palette nodes");
             redNodes.init(settings,storage,app);
-            redNodes.load().then(function() {
+            return redNodes.load().then(function() {
+                    
                 var i;
-                var nodes = redNodes.getNodeList();
-                var nodeErrors = nodes.filter(function(n) { return n.err!=null;});
-                var nodeMissing = nodes.filter(function(n) { return n.module && n.enabled && !n.loaded && !n.err;});
+                var nodeErrors = redNodes.getNodeList(function(n) { return n.err!=null;});
+                var nodeMissing = redNodes.getNodeList(function(n) { return n.module && n.enabled && !n.loaded && !n.err;});
                 if (nodeErrors.length > 0) {
                     log.warn("------------------------------------------");
                     if (settings.verbose) {
@@ -92,7 +92,7 @@ function start() {
                         if (missingModules.hasOwnProperty(i)) {
                             log.warn(" - "+i+": "+missingModules[i].join(", "));
                             if (settings.autoInstallModules && i != "node-red") {
-                                installModule(i).otherwise(function(err) {
+                                serverAPI.installModule(i).otherwise(function(err) {
                                     // Error already reported. Need the otherwise handler
                                     // to stop the error propagating any further
                                 });
@@ -104,25 +104,26 @@ function start() {
                         redNodes.cleanModuleList();
                     }
                 }
+                log.info("Settings file  : "+settings.settingsFile);
                 redNodes.loadFlows();
+                comms.start();
             }).otherwise(function(err) {
                 console.log(err);
             });
-            comms.start();
     });
 }
 
 
 function reportAddedModules(info) {
-    comms.publish("node/added",info,false);
-    if (info.length > 0) {
+    comms.publish("node/added",info.nodes,false);
+    if (info.nodes.length > 0) {
         log.info("Added node types:");
-        for (var i=0;i<info.length;i++) {
-            for (var j=0;j<info[i].types.length;j++) {
+        for (var i=0;i<info.nodes.length;i++) {
+            for (var j=0;j<info.nodes[i].types.length;j++) {
                 log.info(" - "+
-                    (info[i].module?info[i].module+":":"")+
-                    info[i].types[j]+
-                    (info[i].err?" : "+info[i].err:"")
+                    (info.nodes[i].module?info.nodes[i].module+":":"")+
+                    info.nodes[i].types[j]+
+                    (info.nodes[i].err?" : "+info.nodes[i].err:"")
                 );
             }
         }
@@ -216,22 +217,21 @@ function uninstallModule(module) {
 function reportMetrics() {
     var memUsage = process.memoryUsage();
 
-    // only need to init these once per report
-    var metrics = {};
-    metrics.level = log.METRIC;
-
-    //report it
-    metrics.event = "runtime.memory.rss"
-    metrics.value = memUsage.rss;
-    log.log(metrics);
-
-    metrics.event = "runtime.memory.heapTotal"
-    metrics.value = memUsage.heapTotal;
-    log.log(metrics);
-
-    metrics.event = "runtime.memory.heapUsed"
-    metrics.value = memUsage.heapUsed;
-    log.log(metrics);
+    log.log({
+        level: log.METRIC,
+        event: "runtime.memory.rss",
+        value: memUsage.rss
+    });
+    log.log({
+        level: log.METRIC,
+        event: "runtime.memory.heapTotal",
+        value: memUsage.heapTotal
+    });
+    log.log({
+        level: log.METRIC,
+        event: "runtime.memory.heapUsed",
+        value: memUsage.heapUsed
+    });
 }
 
 function stop() {
@@ -243,7 +243,7 @@ function stop() {
     comms.stop();
 }
 
-module.exports = {
+var serverAPI = module.exports = {
     init: init,
     start: start,
     stop: stop,

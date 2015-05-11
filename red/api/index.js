@@ -24,6 +24,7 @@ var nodes = require("./nodes");
 var flows = require("./flows");
 var library = require("./library");
 var info = require("./info");
+var theme = require("./theme");
 
 var auth = require("./auth");
 var needsPermission = auth.needsPermission;
@@ -31,9 +32,8 @@ var needsPermission = auth.needsPermission;
 var settings = require("../settings");
 
 var errorHandler = function(err,req,res,next) {
-    //TODO: standardize json response
     console.log(err.stack);
-    res.send(400,err.toString());
+    res.json(400,{error:"unexpected_error", message:err.toString()});
 };
 
 function init(adminApp,storage) {
@@ -42,15 +42,21 @@ function init(adminApp,storage) {
     
     // Editor
     if (!settings.disableEditor) {
+        ui.init(settings);
         var editorApp = express();
-        editorApp.get("/",ui.ensureSlash);
+        editorApp.get("/",ui.ensureSlash,ui.editor);
         editorApp.get("/icons/:icon",ui.icon);
-        editorApp.use("/",ui.editor);
+        if (settings.editorTheme) {
+            editorApp.use("/theme",theme.init(settings));
+        }
+        editorApp.use("/",ui.editorResources);
         adminApp.use(editorApp);
     }
 
     adminApp.use(express.json());
     adminApp.use(express.urlencoded());
+
+    adminApp.get("/auth/login",auth.login);
     
     if (settings.adminAuth) {
         //TODO: all passport references ought to be in ./auth
@@ -61,7 +67,6 @@ function init(adminApp,storage) {
             auth.getToken,
             auth.errorHandler
         );
-        adminApp.get("/auth/login",auth.login);
         adminApp.post("/auth/revoke",auth.revoke);
     }
 

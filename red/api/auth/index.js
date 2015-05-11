@@ -22,6 +22,8 @@ var Tokens = require("./tokens");
 var Users = require("./users");
 var permissions = require("./permissions");
 
+var theme = require("../theme");
+
 var settings = null;
 var log = require("../../log");
 
@@ -38,18 +40,18 @@ function init(_settings,storage) {
     settings = _settings;
     if (settings.adminAuth) {
         Users.init(settings.adminAuth);
-        Tokens.init(storage);
+        Tokens.init(settings.adminAuth,storage);
     }
 }
 
 function needsPermission(permission) {
     return function(req,res,next) {
-        if (settings.adminAuth) {
+        if (settings && settings.adminAuth) {
             return passport.authenticate(['bearer','anon'],{ session: false })(req,res,function() {
                 if (!req.user) {
                     return next();
                 }
-                if (permissions.hasPermission(req.user,permission)) {
+                if (permissions.hasPermission(req.authInfo.scope,permission)) {
                     return next();
                 }
                 return res.send(401);
@@ -74,9 +76,15 @@ function getToken(req,res,next) {
 }
 
 function login(req,res) {
-    var response = {
-        "type":"credentials",
-        "prompts":[{id:"username",type:"text",label:"Username"},{id:"password",type:"password",label:"Password"}]
+    var response = {};
+    if (settings.adminAuth) {
+        response = {
+            "type":"credentials",
+            "prompts":[{id:"username",type:"text",label:"Username"},{id:"password",type:"password",label:"Password"}]
+        }
+        if (theme.context().login && theme.context().login.image) {
+            response.image = theme.context().login.image;
+        }
     }
     res.json(response);
 }
@@ -96,7 +104,6 @@ module.exports = {
     authenticateClient: authenticateClient,
     getToken: getToken,
     errorHandler: function(err,req,res,next) {
-        //TODO: standardize json response
         //TODO: audit log statment
         //console.log(err.stack);
         //log.log({level:"audit",type:"auth",msg:err.toString()});

@@ -22,9 +22,10 @@ module.exports = function(RED) {
 
     function ExecNode(n) {
         RED.nodes.createNode(this,n);
-        this.cmd = n.command.trim();
+        this.cmd = (n.command || "").trim();
+        if (n.addpay == undefined) { n.addpay = true; }
         this.addpay = n.addpay;
-        this.append = n.append.trim() || "";
+        this.append = (n.append || "").trim();
         this.useSpawn = n.useSpawn;
 
         var node = this;
@@ -33,7 +34,7 @@ module.exports = function(RED) {
             if (this.useSpawn === true) {
                 // make the extra args into an array
                 // then prepend with the msg.payload
-                if (typeof(msg.payload !== "string")) { msg.payload = msg.payload.toString(); }
+                if (typeof(msg.payload !== "string")) { msg.payload = (msg.payload || "").toString(); }
                 var arg = [];
                 if (node.append.length > 0) { arg = node.append.split(","); }
                 if ((node.addpay === true) && (msg.payload.trim() !== "")) { arg.unshift(msg.payload); }
@@ -59,14 +60,14 @@ module.exports = function(RED) {
                         node.send([null,null,msg]);
                     });
                     ex.on('error', function (code) {
-                        node.error(code);
+                        node.error(code,msg);
                     });
                 }
                 else { node.error("Spawn command must be just the command - no spaces or extra parameters"); }
             }
             else {
                 var cl = node.cmd;
-                if ((node.addpay === true) && (msg.payload.trim() !== "")) { cl += " "+msg.payload; }
+                if ((node.addpay === true) && ((msg.payload || "").trim() !== "")) { cl += " "+msg.payload; }
                 if (node.append.trim() !== "") { cl += " "+node.append; }
                 if (RED.settings.verbose) { node.log(cl); }
                 var child = exec(cl, {encoding: 'binary', maxBuffer:10000000}, function (error, stdout, stderr) {
