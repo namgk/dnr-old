@@ -50,6 +50,7 @@ module.exports = function(RED) {
 
             this.url = n.url;
             this.method = n.method;
+            this.swaggerDoc = n.swaggerDoc;
 
             var node = this;
 
@@ -59,7 +60,7 @@ module.exports = function(RED) {
             };
 
             this.callback = function(req,res) {
-                if (node.method == "post") {
+                if (node.method.match(/(^post$|^delete$|^put$|^options$)/)) {
                     node.send({req:req,res:res,payload:req.body});
                 } else if (node.method == "get") {
                     node.send({req:req,res:res,payload:req.query});
@@ -81,7 +82,7 @@ module.exports = function(RED) {
                 metricsHandler = function(req, res, next) {
                     var startAt = process.hrtime();
                     onHeaders(res, function() {
-                        if(res._msgId) {
+                        if (res._msgId) {
                             var diff = process.hrtime(startAt);
                             var ms = diff[0] * 1e3 + diff[1] * 1e-6;
                             var metricResponseTime = ms.toFixed(3);
@@ -102,7 +103,7 @@ module.exports = function(RED) {
             } else if (this.method == "put") {
                 RED.httpNode.put(this.url,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
             } else if (this.method == "delete") {
-                RED.httpNode.delete(this.url,corsHandler,metricsHandler,this.callback,this.errorHandler);
+                RED.httpNode.delete(this.url,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
             }
 
             this.on("close",function() {
@@ -148,6 +149,8 @@ module.exports = function(RED) {
                         var len;
                         if (msg.payload == null) {
                             len = 0;
+                        } else if (Buffer.isBuffer(msg.payload)) {
+                            len = msg.payload.length;
                         } else if (typeof msg.payload == "number") {
                             len = Buffer.byteLength(""+msg.payload);
                         } else {
@@ -183,6 +186,10 @@ module.exports = function(RED) {
             }
             if (isTemplatedUrl) {
                 url = mustache.render(nodeUrl,msg);
+            }
+            if (!url) {
+                node.error("No url specified",msg);
+                return;
             }
             // url must start http:// or https:// so assume http:// if not set
             if (!((url.indexOf("http://")===0) || (url.indexOf("https://")===0))) {
@@ -252,7 +259,7 @@ module.exports = function(RED) {
                         var ms = diff[0] * 1e3 + diff[1] * 1e-6;
                         var metricRequestDurationMillis = ms.toFixed(3);
                         node.metric("duration.millis", msg, metricRequestDurationMillis);
-                        if(res.client && res.client.bytesRead) {
+                        if (res.client && res.client.bytesRead) {
                             node.metric("size.bytes", msg, res.client.bytesRead);
                         }
                     }
