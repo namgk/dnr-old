@@ -23,7 +23,7 @@ module.exports = function(RED) {
     var MQTT_PREFIX = "wire/";
 
     var MQTT_BROKER_CONFIG = {
-            "broker":"test.mosquitto.org",
+            "broker":"broker.mqtt-dashboard.com",
             "port":1883,
             "clientid":"",
             "username":"",
@@ -45,6 +45,7 @@ module.exports = function(RED) {
             this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.brokerConfig.clientid,this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.client.subscribe(this.topic,2,function(topic,payload,qos,retain) {
+                    console.log('WIREIN RECEIVED ' + payload);
                     var msg = {topic:topic,payload:payload,qos:qos,retain:retain};
                     if ((node.brokerConfig.broker == "localhost")||(node.brokerConfig.broker == "127.0.0.1")) {
                         msg._topic = topic;
@@ -82,6 +83,7 @@ module.exports = function(RED) {
             this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.brokerConfig.clientid,this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.on("input",function(msg) {
+                console.log('WIREOUT RECEIVED ' + msg);
                 if (msg != null) {
                     if (node.topic) {
                         msg.topic = node.topic;

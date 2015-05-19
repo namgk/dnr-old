@@ -262,12 +262,13 @@ function Flow(config, settings) {
     this.started = false;
 
     this.parseConfig(config, settings);
+    this.settings = settings;
     
 }
 /**
 * Analyze node list and replace placeholder nodes with wire nodes where needed.
 */
-Flow.prototype.analyzeDistributedFlow = function(nodes) {
+Flow.prototype.analyzeDistributedFlow = function(nodes, settings) {
     
     'use strict';
     var replaced = false;
@@ -289,9 +290,8 @@ Flow.prototype.analyzeDistributedFlow = function(nodes) {
         replaced = false;
 
         n = nodes[nId];     
-console.log(n);        
         if (n.type != "placeholder") continue;
-
+        n = n.config;
         // assume a placeholder node can be deleted unless: 
         // a - its connected to another node
         // b - an incoming or outgoing connection is on another device
@@ -312,7 +312,7 @@ console.log(n);
 
                 util.log("[dist] checking wire: "+i+" to node:"+targetId);
 
-                targetDeviceId = nodes[targetId].deviceId || settings.deviceId;
+                targetDeviceId = nodes[targetId].config.deviceId || settings.deviceId;
 
                 util.log("[dist] node id:"+n.deviceId+" target device id:"+targetDeviceId);
 
@@ -329,7 +329,6 @@ console.log(n);
                 }
 
                 // replace node with incoming MQTT node
-                nt = typeRegistry.get("wire in");
                 try {
                     util.log("[dist] add "+nId +" to wire in list");
                     wireInList.push({"node":nId, "topic":n.id+"-"+i+"-"+targetId});
@@ -357,12 +356,13 @@ console.log(n);
         **/   
         util.log("[dist] checking for wires into "+nId);
         for (srcId in nodes) {
-            srcN = nodes[srcId];
+            srcN = nodes[srcId].config;
+            // console.log(srcN);
             if (srcN.id == n.id) continue;
-            if (srcN.wires.length == 0) continue;
+            if (typeof srcN.wires === 'undefined' || srcN.wires.length == 0) continue;
 
             srcDeviceId = srcN.deviceId || settings.deviceId;
-            
+            // console.log(srcDeviceId);
             // the source is not us, so we don't care
             if (srcDeviceId != settings.deviceId) continue;
             // source and destination on same id, so we can delete it
@@ -380,7 +380,6 @@ console.log(n);
 
                     util.log("[dist] src "+srcN.id+' is connected to '+n.id);
                     // replace node with outgoing MQTT node (to the device)
-                    nt = typeRegistry.get("wire out");
                     try {
                         util.log("[dist] add "+nId +" to wire out list");
                         wireOutList.push({"node":nId, "topic":srcId+"-"+i+"-"+nId});
@@ -418,12 +417,15 @@ console.log(n);
 
         n = nodes[nId];        
         util.log('[dist] replacing node '+nId+' with wire out node on topic '+topic);
-
-        nn = new nt({"id":n.id, "topic":topic, "deviceId":n.deviceId, "wires":n.wires});
-        nodes[nId] = nn;
+        
+        nn = new nt({"id":n.config.id, "topic":topic, "deviceId":n.config.deviceId, "wires":n.config.wires});
+        nodes[nId].config = nn;
+        nodes[nId].type = "wire out";
+        this.activeNodes[nId] = nn;
     }
 
     // replace placeholder nodes with wireout nodes
+    // this replacement happen on nodes array while Flow.js/getNode()/Node.js/receive() operate on allNodes
     nt = typeRegistry.get("wire in");
     for (i=0; i<wireInList.length; i++) {
         nId = wireInList[i].node;
@@ -432,8 +434,10 @@ console.log(n);
         n = nodes[nId];        
         util.log('[dist] replacing node '+nId+' with wire in node on topic '+topic);
 
-        nn = new nt({"id":n.id, "topic":topic, "deviceId":n.deviceId, "wires":n.wires});
-        nodes[nId] = nn;
+        nn = new nt({"id":n.config.id, "topic":topic, "deviceId":n.config.deviceId, "wires":n.config.wires});
+        nodes[nId].config = nn;
+        nodes[nId].type = "wire in";
+        this.activeNodes[nId] = nn;
     }
 
     util.log('[dist] ==== distributed flow completed.')
@@ -445,7 +449,6 @@ Flow.prototype.parseConfig = function(config, settings) {
     var nodeType;
     
     this.config = config;
-    this.settings = settings;
     
     this.allNodes = {};
     
@@ -473,12 +476,6 @@ Flow.prototype.parseConfig = function(config, settings) {
     for (i=0;i<this.config.length;i++) {
         nodeConfig = this.config[i];
         nodeType = nodeConfig.type;
-        var nodeDeviceId = nodeConfig.deviceId || settings.deviceId;
-        if (nodeDeviceId != settings.deviceId) {
-            util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
-            // create a placeholder for the external node
-            nodeType = "placeholder";
-        }
 
         if (nodeConfig.credentials) {
             delete nodeConfig.credentials;
@@ -489,7 +486,17 @@ Flow.prototype.parseConfig = function(config, settings) {
             if ((m && !this.subflows[m[1]]) || (!m && !typeRegistry.get(nodeType))) {
                 // This is an unknown subflow or an unknown type
                 unknownTypes[nodeType] = true;
+                console.log('UNKNOWN SUBFLOW OR UNKNOWN TYPE');
             } else {
+
+                var nodeDeviceId = nodeConfig.deviceId || settings.deviceId;
+                if (nodeDeviceId != settings.deviceId) {
+                    console.log('REPLACING WITH PLACEHOLDER');
+                    util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
+                    // create a placeholder for the external node
+                    nodeType = "placeholder";
+                }
+
                 var nodeInfo = {
                     type: nodeType,
                     config:nodeConfig
@@ -516,8 +523,6 @@ Flow.prototype.parseConfig = function(config, settings) {
         }
     }
     
-    // analyze flow and add wire nodes where needed.
-    this.analyzeDistributedFlow(this.allNodes);
     
     //console.log("NODES");
     //for (i in this.nodes) {
@@ -556,7 +561,6 @@ Flow.prototype.start = function(configDiff) {
     
     var id;
     var node;
-    
     for (id in this.configNodes) {
         if (this.configNodes.hasOwnProperty(id)) {
             node = this.configNodes[id];
@@ -565,16 +569,23 @@ Flow.prototype.start = function(configDiff) {
             }
         }
     }
+    console.log('---------------------------------- nodes being started -----------------------------------');
+    console.log(this.nodes);
+    // analyze flow and add wire nodes where needed.
+    this.analyzeDistributedFlow(this.nodes, this.settings);
+    console.log('---------------------------------- nodes after dist -----------------------------------');
+    console.log(this.nodes);
     
     for (id in this.nodes) {
         if (this.nodes.hasOwnProperty(id)) {
             node = this.nodes[id];
+            
             if (!node.subflow) {
                 if (!this.activeNodes[id]) {
                     this.activeNodes[id] = createNode(node.type,node.config);
-                    //console.log(id,"created");
+                    console.log(id,"created");
                 } else {
-                    //console.log(id,"already running");
+                    console.log(id,"already running");
                 }
             } else {
                 if (!this.subflowInstanceNodes[id]) {
@@ -583,13 +594,16 @@ Flow.prototype.start = function(configDiff) {
                     for (var i=0;i<nodes.length;i++) {
                         this.activeNodes[nodes[i].id] = nodes[i];
                     }
-                    //console.log(id,"(sf) created");
+                    console.log(id,"(sf) created");
                 } else {
-                    //console.log(id,"(sf) already running");
+                    console.log(id,"(sf) already running");
                 }
             }
         }
     }
+    
+    console.log('---------------------------------- active nodes -----------------------------------');
+    console.log(this.activeNodes);
     
     this.catchNodeMap = createCatchNodeMap(this.activeNodes);
     
