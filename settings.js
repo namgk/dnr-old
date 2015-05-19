@@ -138,6 +138,19 @@ module.exports = {
     //    origin: "*",
     //    methods: "GET,PUT,POST,DELETE"
     //},
+
+    // The following property can be used to configure a proxy for use by the
+    // http request node.
+    //httpNodeProxy : { host:"myproxy.acme.com", port:8080 },
+
+    // The following property can be used to add a custom middleware function
+    // in front of all http in nodes. This allows custom authentication to be
+    // applied to all http in nodes, or any other sort of common request processing.
+    //httpNodeMiddleware: function(req,res,next) {
+    //   // Handle/reject the request, or pass it on to the http in node
+    //   // by calling next();
+    //   next();
+    //},
     
     // Anything in this hash is globally available to all functions.
     // It is accessed as context.global.

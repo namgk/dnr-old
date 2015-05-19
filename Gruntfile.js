@@ -341,6 +341,13 @@ module.exports = function(grunt) {
             }
         }
     });
+    
+    grunt.registerTask('setDevEnv',
+        'Sets NODE_ENV=development to non-minified assets are used',
+            function () {
+                process.env.NODE_ENV = 'development';
+            });
+
 
     grunt.registerTask('default',
         'Builds editor content then runs code style checks and unit tests on all components',
@@ -364,7 +371,7 @@ module.exports = function(grunt) {
 
     grunt.registerTask('dev',
         'Developer mode: run node-red, watch for source changes and build/restart',
-        ['build','concurrent:dev']);
+        ['build','setDevEnv','concurrent:dev']);
 
     grunt.registerTask('release',
         'Create distribution zip file',

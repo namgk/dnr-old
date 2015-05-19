@@ -76,6 +76,14 @@ module.exports = function(RED) {
                 RED.httpNode.options(this.url,corsHandler);
             }
 
+            var httpMiddleware = function(req,res,next) { next(); }
+            
+            if (RED.settings.httpNodeMiddleware) {
+                if (typeof RED.settings.httpNodeMiddleware === "function") {
+                    httpMiddleware = RED.settings.httpNodeMiddleware;
+                }
+            }
+            
             var metricsHandler = function(req,res,next) { next(); }
 
             if (this.metric()) {
@@ -97,13 +105,13 @@ module.exports = function(RED) {
             }
 
             if (this.method == "get") {
-                RED.httpNode.get(this.url,corsHandler,metricsHandler,this.callback,this.errorHandler);
+                RED.httpNode.get(this.url,httpMiddleware,corsHandler,metricsHandler,this.callback,this.errorHandler);
             } else if (this.method == "post") {
-                RED.httpNode.post(this.url,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
+                RED.httpNode.post(this.url,httpMiddleware,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
             } else if (this.method == "put") {
-                RED.httpNode.put(this.url,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
+                RED.httpNode.put(this.url,httpMiddleware,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
             } else if (this.method == "delete") {
-                RED.httpNode.delete(this.url,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
+                RED.httpNode.delete(this.url,httpMiddleware,corsHandler,metricsHandler,jsonParser,urlencParser,rawBodyParser,this.callback,this.errorHandler);
             }
 
             this.on("close",function() {
@@ -192,7 +200,7 @@ module.exports = function(RED) {
                 return;
             }
             // url must start http:// or https:// so assume http:// if not set
-            if (!((url.indexOf("http://")===0) || (url.indexOf("https://")===0))) {
+            if (!((url.indexOf("http://") === 0) || (url.indexOf("https://") === 0))) {
                 url = "http://"+url;
             }
 
@@ -243,7 +251,18 @@ module.exports = function(RED) {
                     opts.headers['content-length'] = Buffer.byteLength(payload);
                 }
             }
-            var req = ((/^https/.test(url))?https:http).request(opts,function(res) {
+            var urltotest = url;
+            if (RED.settings.httpNodeProxy) {
+                var proxy = RED.settings.httpNodeProxy.host;
+                opts.protocol = "http:";
+                opts.headers['Host'] = opts.host;
+                opts.host = opts.hostname = proxy;
+                opts.port = RED.settings.httpNodeProxy.port || opts.port;
+                if (opts.port) { opts.host = opts.host+":"+opts.port; }
+                opts.path = opts.pathname = opts.href;
+                urltotest = proxy;
+            }
+            var req = ((/^https/.test(urltotest))?https:http).request(opts,function(res) {
                 (node.ret === "bin") ? res.setEncoding('binary') : res.setEncoding('utf8');
                 msg.statusCode = res.statusCode;
                 msg.headers = res.headers;
