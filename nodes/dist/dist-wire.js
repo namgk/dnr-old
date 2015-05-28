@@ -23,9 +23,9 @@ module.exports = function(RED) {
     var MQTT_PREFIX = "wire/";
 
     var MQTT_BROKER_CONFIG = {
-            "broker":"broker.mqtt-dashboard.com",
+            "broker":"test.mosquitto.org",
             "port":1883,
-            "clientid":"",
+            "clientid":"sdf",
             "username":"",
             "password":""
         };
@@ -42,11 +42,11 @@ module.exports = function(RED) {
 
         if (this.brokerConfig) {
             this.status({fill:"red",shape:"ring",text:"disconnected"});
-            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.brokerConfig.clientid,this.brokerConfig.username,this.brokerConfig.password);
+            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,"wirein",this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.client.subscribe(this.topic,2,function(topic,payload,qos,retain) {
-                    console.log('WIREIN RECEIVED ' + payload);
-                    var msg = {topic:topic,payload:payload,qos:qos,retain:retain};
+                    console.log('WIREIN NODE ' + node.id + ' RECEIVED ' + payload);
+                    var msg = {topic:topic,payload:''+payload,qos:qos,retain:retain};
                     if ((node.brokerConfig.broker == "localhost")||(node.brokerConfig.broker == "127.0.0.1")) {
                         msg._topic = topic;
                     }
@@ -80,10 +80,10 @@ module.exports = function(RED) {
 
         if (this.brokerConfig) {
             this.status({fill:"red",shape:"ring",text:"disconnected"},true);
-            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.brokerConfig.clientid,this.brokerConfig.username,this.brokerConfig.password);
+            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,"wireout",this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.on("input",function(msg) {
-                console.log('WIREOUT RECEIVED ' + msg);
+                console.log('WIREOUT NODE ' + node.id + ' RECEIVED ' + msg);
                 if (msg != null) {
                     if (node.topic) {
                         msg.topic = node.topic;

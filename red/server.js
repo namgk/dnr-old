@@ -25,6 +25,8 @@ var comms = require("./comms");
 var storage = require("./storage");
 var log = require("./log");
 
+var deviceServer = require("./deviceServer");
+
 var app = null;
 var nodeApp = null;
 var server = null;
@@ -39,6 +41,8 @@ function init(_server,_settings) {
 
     comms.init(_server,_settings);
 
+    deviceServer.init(_server,_settings);
+    
     nodeApp = express();
     app = express();
 }
@@ -107,6 +111,8 @@ function start() {
                 log.info("Settings file  : "+settings.settingsFile);
                 redNodes.loadFlows();
                 comms.start();
+                
+                deviceServer.start();
             }).otherwise(function(err) {
                 console.log(err);
             });

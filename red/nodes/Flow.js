@@ -486,12 +486,10 @@ Flow.prototype.parseConfig = function(config, settings) {
             if ((m && !this.subflows[m[1]]) || (!m && !typeRegistry.get(nodeType))) {
                 // This is an unknown subflow or an unknown type
                 unknownTypes[nodeType] = true;
-                console.log('UNKNOWN SUBFLOW OR UNKNOWN TYPE');
             } else {
 
                 var nodeDeviceId = nodeConfig.deviceId || settings.deviceId;
                 if (nodeDeviceId != settings.deviceId) {
-                    console.log('REPLACING WITH PLACEHOLDER');
                     util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
                     // create a placeholder for the external node
                     nodeType = "placeholder";

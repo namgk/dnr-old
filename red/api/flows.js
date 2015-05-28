@@ -22,6 +22,8 @@ var log = require("../log");
 var redNodes = require("../nodes");
 var settings = require("../settings");
 
+var deviceServer = require("../deviceServer");
+
 module.exports = {
     get: function(req,res) {
         log.audit({event: "flows.get"},req);
@@ -31,6 +33,9 @@ module.exports = {
         var flows = req.body;
         var deploymentType = req.get("Node-RED-Deployment-Type")||"full";
         log.audit({event: "flows.set",type:deploymentType},req);
+        // notify participated devices
+        deviceServer.notify();
+        
         redNodes.setFlows(flows,deploymentType).then(function() {
             res.send(204);
         }).otherwise(function(err) {

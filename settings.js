@@ -22,10 +22,10 @@
 module.exports = {
 
     // this is the id of the local device for distributed flows
-    deviceId: "1880",
+    deviceId: "http://localhost:1880/",
 
     // devices participating in a distributed flow
-    devices: [{label:"Server", deviceId:"1880"},
+    devices: [{label:"Server", deviceId:"http://localhost:1880/"},
         {label:"Raspberry Pi", deviceId:"1881"},
         {label:"Laptop",deviceId:"1882"}
     ],
@@ -35,7 +35,7 @@ module.exports = {
         methods: "GET"
     },
 
-    masterDevice: "http://master-server/",
+    masterDevice: "http://localhost:1880/",
 
 
     // the tcp port that the Node-RED web server is listening on
