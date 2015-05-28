@@ -77,13 +77,13 @@ module.exports = function(RED) {
             }
 
             var httpMiddleware = function(req,res,next) { next(); }
-            
+
             if (RED.settings.httpNodeMiddleware) {
                 if (typeof RED.settings.httpNodeMiddleware === "function") {
                     httpMiddleware = RED.settings.httpNodeMiddleware;
                 }
             }
-            
+
             var metricsHandler = function(req,res,next) { next(); }
 
             if (this.metric()) {
@@ -185,6 +185,13 @@ module.exports = function(RED) {
         var nodeMethod = n.method || "GET";
         this.ret = n.ret || "txt";
         var node = this;
+
+        var prox, noprox;
+        if (process.env.http_proxy != null) { prox = process.env.http_proxy; }
+        if (process.env.HTTP_PROXY != null) { prox = process.env.HTTP_PROXY; }
+        if (process.env.no_proxy != null) { noprox = process.env.no_proxy.split(","); }
+        if (process.env.NO_PROXY != null) { noprox = process.env.NO_PROXY.split(","); }
+
         this.on("input",function(msg) {
             var preRequestTimestamp = process.hrtime();
             node.status({fill:"blue",shape:"dot",text:"requesting"});
@@ -248,19 +255,36 @@ module.exports = function(RED) {
                     }
                 }
                 if (opts.headers['content-length'] == null) {
-                    opts.headers['content-length'] = Buffer.byteLength(payload);
+                    if (Buffer.isBuffer(payload)) {
+                        opts.headers['content-length'] = payload.length;
+                    } else {
+                        opts.headers['content-length'] = Buffer.byteLength(payload);
+                    }
                 }
             }
             var urltotest = url;
-            if (RED.settings.httpNodeProxy) {
-                var proxy = RED.settings.httpNodeProxy.host;
-                opts.protocol = "http:";
-                opts.headers['Host'] = opts.host;
-                opts.host = opts.hostname = proxy;
-                opts.port = RED.settings.httpNodeProxy.port || opts.port;
-                if (opts.port) { opts.host = opts.host+":"+opts.port; }
-                opts.path = opts.pathname = opts.href;
-                urltotest = proxy;
+            var noproxy;
+            if (noprox) {
+                for (var i in noprox) {
+                    if (url.indexOf(noprox[i]) !== -1) { noproxy=true; }
+                }
+            }
+            if (prox && !noproxy) {
+                var match = prox.match(/^(http:\/\/)?(.+)?:([0-9]+)?/i);
+                if (match) {
+                    //opts.protocol = "http:";
+                    //opts.host = opts.hostname = match[2];
+                    //opts.port = (match[3] != null ? match[3] : 80);
+                    opts.headers['Host'] = opts.host;
+                    var heads = opts.headers;
+                    var path = opts.pathname = opts.href;
+                    opts = urllib.parse(prox);
+                    opts.path = opts.pathname = path;
+                    opts.headers = heads;
+                    //console.log(opts);
+                    urltotest = match[0];
+                }
+                else { node.warn("Bad proxy url: "+process.env.http_proxy); }
             }
             var req = ((/^https/.test(urltotest))?https:http).request(opts,function(res) {
                 (node.ret === "bin") ? res.setEncoding('binary') : res.setEncoding('utf8');
