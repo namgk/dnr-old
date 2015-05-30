@@ -42,7 +42,7 @@ module.exports = function(RED) {
 
         if (this.brokerConfig) {
             this.status({fill:"red",shape:"ring",text:"disconnected"});
-            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.id,this.brokerConfig.username,this.brokerConfig.password);
+            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,RED.settings.deviceId+'wirein',this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.client.subscribe(this.topic,2,function(topic,payload,qos,retain) {
                     console.log('WIREIN NODE ' + node.id + ' RECEIVED ' + payload);
@@ -80,7 +80,7 @@ module.exports = function(RED) {
 
         if (this.brokerConfig) {
             this.status({fill:"red",shape:"ring",text:"disconnected"},true);
-            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,this.id,this.brokerConfig.username,this.brokerConfig.password);
+            this.client = connectionPool.get(this.brokerConfig.broker,this.brokerConfig.port,RED.settings.deviceId+'wireout',this.brokerConfig.username,this.brokerConfig.password);
             var node = this;
             this.on("input",function(msg) {
                 console.log('WIREOUT NODE ' + node.id + ' RECEIVED ' + msg);
