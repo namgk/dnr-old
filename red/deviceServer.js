@@ -51,7 +51,7 @@ devServer.prototype.init = function(_server,_settings) {
     settings = _settings;
 }
 devServer.prototype.notify = function() {
-    var msg = {'topic':settings.deviceId};
+    var msg = {'topic':settings.deviceId, 'payload':'new flows available'};
     client.publish(msg);
 }
 devServer.prototype.start = function() {
@@ -63,7 +63,7 @@ devServer.prototype.start = function() {
     client = connectionPool.get(
         MQTT_BROKER_CONFIG.broker,
         MQTT_BROKER_CONFIG.port,
-        MQTT_BROKER_CONFIG.clientid,
+        settings.deviceId + 'DeviceServer',
         MQTT_BROKER_CONFIG.username,
         MQTT_BROKER_CONFIG.password);
         
@@ -79,6 +79,8 @@ devServer.prototype.start = function() {
         
         // redeploy
         setTimeout(function(){
+            if (result.statusCode !== 200)
+                return;
             var flows = JSON.parse(result.payload);
             var deploymentType = "full";
             redNodes.setFlows(flows,deploymentType).then(function() {
