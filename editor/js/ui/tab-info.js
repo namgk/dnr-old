@@ -67,6 +67,7 @@ RED.sidebar.info = (function() {
         table += "<tr><td>Type</td><td>&nbsp;"+node.type+"</td></tr>";
         table += "<tr><td>ID</td><td>&nbsp;"+node.id+"</td></tr>";
         table += "<tr><td>deviceId</td><td>&nbsp;"+node.deviceId+"</td></tr>";
+        table += "<tr><td>constraintId</td><td>&nbsp;"+node.constraintId+"</td></tr>";
         
         var m = /^subflow(:(.+))?$/.exec(node.type);
         if (m) {

@@ -43,7 +43,7 @@
 <div id="main-container" class="sidebar-closed hide">
     <div id="tools" class="palette-category">
         <a id="btn-set-device" class="button dropdown-toggle"data-toggle="dropdown" href="#">
-          <i class="fa fa-cloud"></i> Set Device</a>  
+          <i class="fa fa-cloud"></i>Set Constraints</a>  
         <ul id="device-list" class="dropdown-menu"></ul>      
     </div><!-- /tools -->
     <div id="palette">
@@ -88,7 +88,10 @@
 <div id="dropTarget"><div>Drop the flow here<br/><i class="fa fa-download"></i></div></div>
 
 <div id="dialog" class="hide"><form id="dialog-form" class="form-horizontal"></form></div>
+
 <div id="import-dialog" class="hide"><form id="dialog-import-form" class="form-horizontal"></form></div>
+<div id="constraint-dialog" class="hide"><form id="dialog-constraint-form" class="form-horizontal"></form></div>
+
 <div id="node-config-dialog" class="hide"><form id="dialog-config-form" class="form-horizontal"></form><div class="form-tips" id="node-config-dialog-user-count"></div></div>
 <div id="subflow-dialog" class="hide">
     <form class="form-horizontal">
@@ -177,6 +180,26 @@
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="name">
+    </div>
+</script>
+
+
+<script type="text/x-red" data-template-name="create-constraint-dialog">
+    <div class="form-row">
+        <label for="constraint-id" ><i class="fa fa-cloud"></i>Constraint Id:</label>
+        <input type="text" id="constraint-id">
+        <label for="device-id" ><i class="fa"></i>Device:</label>
+        <input type="text" id="device-id" placeholder="device's application scope unique ID">
+        <label for="device-id" ><i class="fa"></i>Geolocation:</label>
+        <input type="text" id="geoloc-constraint" placeholder="lat,long,radius">
+        <label for="device-id" ><i class="fa"></i>Network:</label>
+        <input type="text" id="network-constraint" placeholder="CIDR">
+        <label for="device-id" ><i class="fa"></i>Compute:</label>
+        <input type="text" id="compute-constraint" placeholder="Compute|IO|Edge">
+        <label for="device-id" ><i class="fa"></i>Storage:</label>
+        <input type="text" id="storage-constraint" placeholder="required storage in KB">
+        <label for="device-id" ><i class="fa"></i>Custom:</label>
+        <input type="text" id="custom-constraint" placeholder="custom-defined constraint">
     </div>
 </script>
 

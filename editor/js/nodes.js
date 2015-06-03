@@ -25,8 +25,10 @@ RED.nodes = (function() {
     
     // device boxes on the display
     var deviceboxes = [];   // list of device boxes for display in the flow
+    var constraints = [];   // list of constraint nodes
     var defaultDeviceId;      // default device to use when none specified
-
+    var defaultConstraintId;
+    
     var dirty = false;
     
     function setDirty(d) {
@@ -249,11 +251,20 @@ RED.nodes = (function() {
     function addDeviceBox(devicebox) {
         deviceboxes.push(devicebox);
     }
+    function addConstraint(constraint) {
+        constraints.push(constraint);
+    }
 
     function removeDeviceBox(db) {
         var index = deviceboxes.indexOf(db);
         if (index != -1) {
             deviceboxes.splice(index,1);
+        }
+    }
+    function removeConstraint(ct) {
+        var index = constraints.indexOf(ct);
+        if (index != -1) {
+            constraints.splice(index,1);
         }
     }
 
@@ -375,6 +386,7 @@ RED.nodes = (function() {
         node.id = n.id;
         node.type = n.type;
         node.deviceId = n.deviceId;
+        node.constraintId = n.constraintId;
         if (node.type == "unknown") {
             for (var p in n._orig) {
                 if (n._orig.hasOwnProperty(p)) {
@@ -540,6 +552,9 @@ RED.nodes = (function() {
         for (i=0;i<deviceboxes.length;i++) {
             nns.push(deviceboxes[i]);
         }
+        for (i=0;i<constraints.length;i++) {
+            nns.push(constraints[i]);
+        }
         for (i in configNodes) {
             if (configNodes.hasOwnProperty(i)) {
                 nns.push(convertNode(configNodes[i], true));
@@ -702,7 +717,7 @@ RED.nodes = (function() {
 
         // set up default device
         defaultDeviceId = RED.settings.deviceId;
-        
+        defaultConstraintId = 'default constraint';
         // add nodes
 
 
@@ -716,7 +731,7 @@ RED.nodes = (function() {
             if (n.type !== "workspace" && n.type !== "tab" && n.type !== "subflow" && n.type !== "devicebox") {
                 def = registry.getNodeType(n.type);
                 if (!def || def.category != "config") {
-                    var node = {x:n.x,y:n.y,z:n.z,type:0,deviceId:n.deviceId,wires:n.wires,changed:false};
+                    var node = {x:n.x,y:n.y,z:n.z,type:0,deviceId:n.deviceId,constraintId:n.constraintId,wires:n.wires,changed:false};
                     if (createNewIds) {
                         if (subflow_map[node.z]) {
                             node.z = subflow_map[node.z].id;
@@ -786,6 +801,9 @@ RED.nodes = (function() {
                     
                     if (!node.deviceId) {
                         node.deviceId = defaultDeviceId;
+                    }
+                    if (!node.constraintId) {
+                        node.constraintId = defaultConstraintId;
                     }
 
                     addNode(node);
@@ -982,6 +1000,9 @@ RED.nodes = (function() {
         workspaces: workspaces,
         addDeviceBox: addDeviceBox,
         removeDeviceBox: removeDeviceBox,
-        deviceboxes: deviceboxes 
+        deviceboxes: deviceboxes,
+        addConstraint: addConstraint,
+        removeConstraint: removeConstraint,
+        constraints: constraints
     };
 })();

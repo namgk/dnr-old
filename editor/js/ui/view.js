@@ -202,18 +202,22 @@ RED.view = (function() {
    
     // TODO: get this from settings
     var currentDevice = { deviceId:"server", label:"Server"};
-   
+    var currentConstraint = {constraintId:"default constraint", deviceId:"server"};
+    
     // currently selected dev box
     var selected_devBox = null;
    
     // master device for the distributed flows
     var masterDeviceUrl = null;
-   
+    
     /**
     * set the current device the user selected to configure nodes
     **/
     function setCurrentDevice(device) {
         currentDevice = device;
+    };
+    function setCurrentConstraint(constraint) {
+        currentConstraint = constraint;
     };
 
     //var gridScale = d3.scale.linear().range([0,2000]).domain([0,2000]);
@@ -348,7 +352,9 @@ RED.view = (function() {
                 var nn = { id:(1+Math.random()*4294967295).toString(16),x: mousePos[0],y:mousePos[1],w:node_width,z:RED.workspaces.active()};
                 
                 nn.type = selected_tool;
-                nn.deviceId = currentDevice.deviceId;
+                // TODO: change deviceId to constraintId
+                nn.deviceId = currentConstraint.deviceId;
+                nn.constraintId = currentConstraint.constraintId;
                 nn._def = RED.nodes.getType(nn.type);
                 
                 if (!m) {
@@ -763,6 +769,7 @@ RED.view = (function() {
         var nn = { id:(1+Math.random()*4294967295).toString(16),
             type:"devicebox",
             deviceId:currentDevice.deviceId,
+            constraintId:currentConstraint.constraintId,
             x:Number(lasso.attr("x")),
             y:Number(lasso.attr("y")),
             w:Number(lasso.attr("width")),
@@ -778,6 +785,7 @@ RED.view = (function() {
             var n = moving_set[i];
 
             n.n.deviceId = currentDevice.deviceId;
+            n.n.constraintId = currentConstraint.constraintId;
         }
         // TODO: when deleting a device_box, set the device to the local device id?
 
@@ -1181,7 +1189,7 @@ RED.view = (function() {
             // first draw the device boxes
             // delete boxes that have been deleted
             var devbox = devicebox.selectAll(".devboxgroup").data(RED.nodes.deviceboxes.filter(function(d) {
-                return d.z == activeWorkspace
+                return (d.z == activeWorkspace)
             }),function(d){
                 return d.id
             });
@@ -1792,6 +1800,71 @@ RED.view = (function() {
         
     }
 
+    function showConstraintDialog(addConstraint, onselect) {
+        mouse_mode = RED.state.IMPORT;
+        $("#dialog-constraint-form").html($("script[data-template-name='create-constraint-dialog']").html());
+        
+        $("#constraint-dialog").dialog({
+            title:"Define new constraint",
+            width: 500,
+            open: function(e) {
+                RED.keyboard.disable();
+            },
+            close: function(e) {
+                RED.keyboard.enable();
+            },
+            buttons: 
+            {
+                "Create": function() {
+                    
+                    var constraintId = $( "#constraint-id" ).val();
+                    if (!constraintId){
+                        alert('constrantId required');
+                        return;
+                    }
+                        
+                    var deviceId = $( "#device-id" ).val();
+                    var geoloc = $( "#geoloc-constraint" ).val();
+                    var network = $( "#network-constraint" ).val();
+                    var compute = $( "#compute-constraint" ).val();
+                    var storage = $( "#storage-constraint" ).val();
+                    var custom = $( "#custom-constraint" ).val();
+                    
+                    var creatingConstraint = {
+                        id:(1+Math.random()*4294967295).toString(16),
+                        type:"devicebox",
+                        constraintId:constraintId,
+                        deviceId:deviceId,
+                        z:activeWorkspace
+                        };
+                    if (deviceId)
+                        creatingConstraint['deviceId'] = deviceId;
+                    if (geoloc)
+                        creatingConstraint['geoloc'] = geoloc;
+                    if (network)
+                        creatingConstraint['network'] = network;
+                    if (compute)
+                        creatingConstraint['compute'] = compute;
+                    if (storage)
+                        creatingConstraint['storage'] = storage;
+                    if (custom)
+                        creatingConstraint['custom'] = custom;
+
+                    // add it to the constraints list in the model.
+                    // TODO: make workspace dirty and redeploy to save the newly created constraint
+                    RED.nodes.addConstraint(creatingConstraint);
+                    
+                    creatingConstraint['label'] = constraintId;
+                    // add it to the top down box
+                    addConstraint(onselect, creatingConstraint);
+                    $( this ).dialog( "close" );
+                },
+                Cancel: function() {
+                    $( this ).dialog( "close" );
+                }
+            }
+        }).dialog( "open" );
+    }
     function showLoadMasterFlowDialog() {
         mouse_mode = RED.state.IMPORT;
         $("#dialog-import-form").html($("script[data-template-name='import-master-flow-dialog']").html());
@@ -2043,6 +2116,8 @@ RED.view = (function() {
             return selection;
         },
         setCurrentDevice: setCurrentDevice,
-        showLoadMasterFlowDialog: showLoadMasterFlowDialog
+        showLoadMasterFlowDialog: showLoadMasterFlowDialog,
+        setCurrentConstraint: setCurrentConstraint,
+        showConstraintDialog: showConstraintDialog
     };
 })();

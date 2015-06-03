@@ -456,12 +456,14 @@ Flow.prototype.parseConfig = function(config, settings) {
     this.subflows = {};
     
     this.configNodes = {};
+    this.constraintNodes = {};
     
     var unknownTypes = {};
     
     for (i=0;i<this.config.length;i++) {
         nodeConfig = this.config[i];
         nodeType = nodeConfig.type;
+        
         this.allNodes[nodeConfig.id] = nodeConfig;
         if (nodeType == "subflow") {
             this.subflows[nodeConfig.id] = {
@@ -470,7 +472,12 @@ Flow.prototype.parseConfig = function(config, settings) {
                 nodes: []
             }
         }
-        
+        if (nodeType == "devicebox") {
+            this.constraintNodes[nodeConfig.id] = {
+                type: "constraint",
+                config: nodeConfig
+            }
+        }
     }
     //console.log("Known subflows:",Object.keys(this.subflows));
     for (i=0;i<this.config.length;i++) {
@@ -488,12 +495,27 @@ Flow.prototype.parseConfig = function(config, settings) {
                 unknownTypes[nodeType] = true;
             } else {
 
+                // TODO: deviceId -> constraintId
+                // TODO: default constraint
                 var nodeDeviceId = nodeConfig.deviceId || settings.deviceId;
+                var nodeConstraintId = nodeConfig.constraintId;
+                if (nodeConstraintId){
+                    // parse constraints and compare with capability here!
+                    // get constraint object by id from constraint list (devicebox)
+                    var constraint = this.constraintNodes[nodeConfig.id];
+                    if (constraint && constraint.config.deviceId){
+                        util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
+                        // create a placeholder for the external node
+                        nodeType = "placeholder";
+                    }
+                }
+                /*    
                 if (nodeDeviceId != settings.deviceId) {
                     util.log("[dist] adding placeholder node for " + nodeConfig.id + " on device "+nodeDeviceId);
                     // create a placeholder for the external node
                     nodeType = "placeholder";
                 }
+                */
 
                 var nodeInfo = {
                     type: nodeType,

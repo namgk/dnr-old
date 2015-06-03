@@ -22,12 +22,10 @@ module.exports = {
 
     // this is the id of the local device for distributed flows
     deviceId: "http://192.168.0.11:1880/",
+    deviceLabel: "Server",
 
     // devices participating in a distributed flow
-    devices: [{label:"Server", deviceId:"http://192.168.0.11:1880/"},
-        {label:"Raspberry Pi", deviceId:"rpikyng"},
-        {label:"Laptop",deviceId:"1881"}
-    ],
+    devices: [],
 
     appCorsOptions: {
         origin: "*",

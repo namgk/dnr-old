@@ -21,20 +21,31 @@ var RED = (function() {
     }
 
 	function loadDeviceList(settings) {
-           var defaultDevice = settings.deviceId;
+            var defaultDevice = settings.deviceId;
             var i;
-            var dev;
+            var dev = {deviceId:settings.deviceId, label:settings.deviceLabel};
             // set the device to the default
+            /*
             for (i=0; i<settings.devices.length; i++) {
                 dev = settings.devices[i];
                 if (dev.deviceId == settings.deviceId)
                     break;
             }
+            */
             RED.view.setCurrentDevice(dev);
             // set up the device list pop down
             RED.devices.init(RED.view.setCurrentDevice,settings.devices);          
     }
 
+    function loadConstraintList(nodes){
+        var constraintList = nodes.filter(function(d) {
+                return d.constraintId;
+        });
+        constraintList.forEach(function (each){
+            RED.devices.addConstraint(RED.view.setCurrentConstraint, each);          
+        });
+    }
+    
     function loadNodeList(settings) {
         loadDeviceList(settings);
         $.ajax({
@@ -75,6 +86,7 @@ var RED = (function() {
             cache: false,
             url: 'flows',
             success: function(nodes) {
+                loadConstraintList(nodes);
                 RED.nodes.import(nodes);
                 RED.nodes.dirty(false);
                 RED.view.redraw(true);

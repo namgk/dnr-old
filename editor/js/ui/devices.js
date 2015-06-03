@@ -3,7 +3,7 @@
  **/
 RED.devices = (function() {
 
-    $("#btn-set-device").on("click",function(e) {
+    $("#btn-set-device").on("mouseover",function(e) {
         e.preventDefault();
         RED.view.state(RED.state.DEVICE_DRAWING);
     });
@@ -21,9 +21,26 @@ RED.devices = (function() {
             .on('click', function(d) {
                 onselect(d);
             });
+            
+        topMenu.insert('li', ':first-child').append('a').attr('href','#')
+            .text('Add new')
+            .on('click', function(d) {
+                RED.view.showConstraintDialog(addConstraint, onselect);
+            });
+    }
+    
+    
+    function addConstraint(onselect, constraint){
+        var topMenu = d3.select("#device-list");
+        topMenu.append('li').append('a').attr('href','#')
+            .text(constraint.constraintId)
+            .on('click', function(d) {
+                onselect(constraint);
+            });
     }
 
     return {
-        init:init
+        init:init,
+        addConstraint: addConstraint
     };
 })();
